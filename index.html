@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dev Edition: Overtime Tax Estimator</title>
+    <style>
+        /* UIG GitHub Pages Encapsulated Styles */
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .uig-gh-container {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 24px;
+            max-width: 450px;
+            width: 100%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .uig-gh-title {
+            margin-top: 0;
+            font-size: 20px;
+            border-bottom: 1px solid #21262d;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            color: #58a6ff;
+        }
+        .uig-gh-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .uig-gh-input {
+            width: 100%;
+            padding: 8px 12px;
+            margin-bottom: 16px;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        .uig-gh-input:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+        .uig-gh-btn {
+            background-color: #238636;
+            color: #ffffff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .uig-gh-btn:hover {
+            background-color: #2ea043;
+        }
+        .uig-gh-results {
+            display: none;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+        .uig-gh-result-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .uig-gh-highlight {
+            color: #3fb950;
+            font-weight: bold;
+        }
+        .uig-gh-footer {
+            font-size: 12px;
+            color: #8b949e;
+            line-height: 1.5;
+            border-top: 1px solid #21262d;
+            padding-top: 16px;
+        }
+        .uig-gh-link {
+            color: #58a6ff;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .uig-gh-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="uig-gh-container">
+    <h2 class="uig-gh-title">Dev Overtime Estimator</h2>
+    
+    <label class="uig-gh-label" for="uig_gh_base_rate">Base Hourly Rate ($)</label>
+    <input class="uig-gh-input" type="number" id="uig_gh_base_rate" placeholder="e.g. 50" min="0">
+
+    <label class="uig-gh-label" for="uig_gh_ot_hours">Overtime Hours Worked</label>
+    <input class="uig-gh-input" type="number" id="uig_gh_ot_hours" placeholder="e.g. 10" min="0">
+
+    <label class="uig-gh-label" for="uig_gh_tax_rate">Estimated Federal Tax Bracket (%)</label>
+    <input class="uig-gh-input" type="number" id="uig_gh_tax_rate" placeholder="e.g. 22" min="0" max="100" value="22">
+
+    <button class="uig-gh-btn" id="uig_gh_calc_btn">Calculate OT Impact</button>
+
+    <div class="uig-gh-results" id="uig_gh_results_box">
+        <div class="uig-gh-result-row">
+            <span>Gross OT Pay (1.5x):</span>
+            <span id="uig_gh_gross_ot">$0.00</span>
+        </div>
+        <div class="uig-gh-result-row">
+            <span>Estimated Federal Tax:</span>
+            <span id="uig_gh_fed_tax">$0.00</span>
+        </div>
+        <div class="uig-gh-result-row" style="margin-top: 12px; border-top: 1px dashed #30363d; padding-top: 12px;">
+            <span>Take-Home (Status Quo):</span>
+            <span id="uig_gh_take_home">$0.00</span>
+        </div>
+        <div class="uig-gh-result-row">
+            <span>Take-Home (Zero OT Tax):</span>
+            <span class="uig-gh-highlight" id="uig_gh_zero_tax">$0.00</span>
+        </div>
+    </div>
+
+    <div class="uig-gh-footer">
+        <strong>Note:</strong> This is a simplified dev-tool assuming flat 1.5x scaling and generalized federal brackets. For exact 2026 W-2 calculations, state-specific deductions, FICA, and PAYE integration, run your exact numbers through the complete <a href="https://ultimateinfoguide.com/no-tax-on-overtime-usa/" target="_blank" class="uig-gh-link">No Tax on Overtime Calculator</a>.
+    </div>
+</div>
+
+<script>
+(function () {
+    "use strict";
+
+    function calculateOT() {
+        var baseRateInput = document.getElementById('uig_gh_base_rate').value;
+        var otHoursInput = document.getElementById('uig_gh_ot_hours').value;
+        var taxRateInput = document.getElementById('uig_gh_tax_rate').value;
+
+        var baseRate = parseFloat(baseRateInput);
+        var otHours = parseFloat(otHoursInput);
+        var taxRate = parseFloat(taxRateInput);
+
+        if (isNaN(baseRate) || isNaN(otHours) || isNaN(taxRate)) {
+            return;
+        }
+
+        var otRate = baseRate * 1.5;
+        var grossOT = otRate * otHours;
+        var estimatedTax = grossOT * (taxRate / 100);
+        var standardTakeHome = grossOT - estimatedTax;
+
+        document.getElementById('uig_gh_gross_ot').innerText = '$' + grossOT.toFixed(2);
+        document.getElementById('uig_gh_fed_tax').innerText = '$' + estimatedTax.toFixed(2);
+        document.getElementById('uig_gh_take_home').innerText = '$' + standardTakeHome.toFixed(2);
+        document.getElementById('uig_gh_zero_tax').innerText = '$' + grossOT.toFixed(2);
+
+        document.getElementById('uig_gh_results_box').style.display = 'block';
+    }
+
+    function init() {
+        var calcBtn = document.getElementById('uig_gh_calc_btn');
+        if (calcBtn) {
+            calcBtn.onclick = calculateOT;
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+
+</body>
+</html>
